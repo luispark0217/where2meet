@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { api } from '../api'
 import { useApi } from '../api/useApi'
 import { Avatar, AvatarStack } from '../components/Avatar'
@@ -8,7 +8,6 @@ import { Crown } from '../components/Crown'
 import { IconButton } from '../components/IconButton'
 import { Photo } from '../components/Photo'
 import { Screen } from '../components/Screen'
-import { soon } from '../components/toast'
 import { TabBar, TabBarSpacer } from '../components/TabBar'
 import type { Group, GroupCategory } from '../data/types'
 
@@ -18,6 +17,7 @@ const FILTERS: ('전체' | GroupCategory)[] = ['전체', '친구', '동아리', 
 export default function MyGroups() {
   const { data: me } = useApi(api.me)
   const { data: groups } = useApi(api.myGroups)
+  const nav = useNavigate()
   const [filter, setFilter] = useState<(typeof FILTERS)[number]>('전체')
   const list = (groups ?? []).filter((g) => filter === '전체' || g.category === filter)
 
@@ -26,8 +26,8 @@ export default function MyGroups() {
       <div className="px-6">
         {/* 상단: 내 아바타 / 메뉴 */}
         <div className="flex items-start justify-between pr-[4px] pt-[12px]">
-          {me && <Avatar member={me} size={42} ring={3} ringColor="var(--color-lime)" fontSize={17} />}
-          <IconButton label="메뉴" variant="glass" onClick={soon}>●</IconButton>
+          {me && <Link to="/my" aria-label="마이 페이지" className="rounded-full"><Avatar member={me} size={42} ring={3} ringColor="var(--color-lime)" fontSize={17} /></Link>}
+          <IconButton label="알림" variant="glass" onClick={() => nav('/alerts')}>●</IconButton>
         </div>
 
         <p className="mt-[14px] text-[15px] font-medium leading-[1.35] text-night-muted">안녕 {me?.name ?? ''},</p>

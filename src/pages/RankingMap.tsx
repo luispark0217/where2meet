@@ -12,8 +12,8 @@ import { TabBar } from '../components/TabBar'
 import { soon } from '../components/toast'
 import { PLACE_FILTERS } from '../data/categories'
 import type { DistrictCluster } from '../data/types'
+import { at } from '../components/figma'
 
-const at = (y: number) => `calc(var(--sat) + ${y - 44}px)`
 /** 피그마에서 아래 요소의 바닥 y → 화면 아래에서의 거리 (탭바·홈바 포함) */
 const fromBottom = (bottomY: number) => `calc(var(--tabpad) + ${844 - 34 - bottomY}px)`
 
@@ -28,7 +28,7 @@ export default function RankingMap() {
 
       {/* 검색 + 순위 */}
       <div className="absolute left-[20px] right-[20px] z-10 flex gap-[12px]" style={{ top: at(52) }}>
-        <label className="flex h-[48px] min-w-0 flex-1 items-center gap-[10px] rounded-full bg-white px-[16px] shadow-float">
+        <label className="flex h-[48px] min-w-0 flex-1 items-center gap-[10px] rounded-full bg-white px-[16px] shadow-float focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-ink">
           <span className="block size-[12px] shrink-0 rounded-full border-2 border-ink" aria-hidden />
           <input className="min-w-0 flex-1 bg-transparent text-[14px] leading-[1.35] text-ink outline-none placeholder:text-paper-muted" placeholder="장소 · 모임 검색" aria-label="장소나 모임 검색" />
         </label>

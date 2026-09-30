@@ -1,5 +1,4 @@
-import { useEffect, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { api } from '../api'
 import { useApi } from '../api/useApi'
 import { IconButton } from '../components/IconButton'
@@ -7,6 +6,7 @@ import { Screen } from '../components/Screen'
 import { StateView } from '../components/StateView'
 import { soon } from '../components/toast'
 import { useBack } from '../components/useBack'
+import { mmss, useCountdown } from '../components/useCountdown'
 import type { AvatarColor, Meeting, Member } from '../data/types'
 
 /** 약속 진행 단계 → 상단 단계 칩 상태 (done = 지난 단계, now = 지금 단계) */
@@ -20,9 +20,10 @@ const STEP_STATE: Record<Meeting['stage'], ['done' | 'now' | 'todo', 'done' | 'n
 
 /** C · 약속 상세 — 시간 · 장소 추천 (피그마 1:228) */
 export default function MeetingDetail() {
-  const { id = 'm-fri' } = useParams()
-  const back = useBack()
+  const { id } = useParams() as { id: string }
+  const nav = useNavigate()
   const { data: m, status } = useApi(() => api.meeting(id), [id])
+  const back = useBack(m ? `/group/${m.groupId}` : '/')
   const steps = m ? STEP_STATE[m.stage] : undefined
   const label = (s: 'done' | 'now' | 'todo' | undefined, done: string, now: string, todo: string) => (s === 'done' ? done : s === 'now' ? now : todo)
   const stepLabels = [
@@ -36,8 +37,8 @@ export default function MeetingDetail() {
       <div className="px-6" style={{ paddingBottom: 'calc(48px + var(--sab))' }}>
         <header className="mt-[8px] flex h-[40px] items-center justify-between">
           <IconButton label="뒤로" onClick={back}>←</IconButton>
-          <h1 className="min-w-0 flex-1 truncate px-3 text-center text-[17px] font-bold leading-[1.35]">{m?.title ?? ''}</h1>
-          <IconButton label="공유" onClick={soon}>↗</IconButton>
+          <h1 className="min-w-0 flex-1 truncate px-3 pt-[3px] text-center text-[17px] font-bold leading-[1.35]">{m?.title ?? ''}</h1>
+          <IconButton label="공유" onClick={() => nav(`/meet/${id}/share`)}>↗</IconButton>
         </header>
 
         {steps && (
@@ -55,9 +56,11 @@ export default function MeetingDetail() {
         {status !== 'ok' && <div className="-mx-6"><StateView status={status} what="약속" /></div>}
         {m?.availability && <TimeCard m={m} />}
         {m?.midpoint && <PlaceCard m={m} />}
+        {m && !m.midpoint && m.placeName && <PickedPlaceCard m={m} />}
 
+        {/* 장소를 정하는 중(줄다리기·투표)이면 확정은 투표(P)에서 — 확정하면 공유(S)로 이어져요 */}
         {m && m.stage !== 'done' && (
-          <button type="button" onClick={soon} className="mt-[28px] flex h-[56px] w-full items-center justify-center rounded-full bg-lime text-[16px] font-bold leading-[1.35] text-ink">
+          <button type="button" onClick={() => (m.stage === 'tug' || m.stage === 'place' ? nav(`/meet/${m.id}/vote`) : soon())} className="mt-[28px] flex h-[56px] w-full items-center justify-center rounded-full bg-lime text-[16px] font-bold leading-[1.35] text-ink">
             {m.stage === 'time' ? '가능한 시간 입력하기' : m.stage === 'confirmed' ? '레이스 준비하기' : '약속 확정하고 공유하기'}
           </button>
         )}
@@ -100,42 +103,52 @@ function TimeCard({ m }: { m: Meeting }) {
   )
 }
 
-/** 어디서 만날까? — 중간 지점 + 줄다리기 */
+/** 어디서 만날까? — 중간 지점 + 줄다리기 (확정 뒤: 여기서 만나요) */
 function PlaceCard({ m }: { m: Meeting }) {
   const mp = m.midpoint!
-  const tugging = m.stage === 'tug' || m.stage === 'place'
+  const tugging = m.stage === 'tug'
+  const deciding = tugging || m.stage === 'place'
   const left = useCountdown(tugging ? mp.tugEndsAt : undefined)
-  const chip = !tugging ? '장소 확정' : left > 0 ? `줄다리기 중 ${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}` : mp.tugEndsAt ? '줄다리기 끝' : '장소 투표 중'
+  const over = tugging && !!mp.tugEndsAt && left <= 0
+  const chip = !deciding ? '장소 확정' : !tugging ? '장소 투표 중' : over ? '줄다리기 끝' : `줄다리기 중 ${mmss(left)}`
+  const btn = 'flex h-[40px] items-center justify-center rounded-full text-[13px] font-bold leading-[1.35]'
   return (
     <section className="relative mt-[16px] h-[300px] rounded-[26px] bg-night-1" aria-labelledby="place-h">
-      <h2 id="place-h" className="absolute left-[20px] top-[18px] text-[16px] font-bold leading-[1.35]">{tugging ? '어디서 만날까?' : '여기서 만나요'}</h2>
-      <span role="timer" className={`absolute right-[20px] top-[18px] rounded-full px-[10px] py-[4px] text-[11px] leading-[1.35] ${tugging ? 'border border-white/25 font-medium' : 'bg-lime font-bold text-ink'}`}>{chip}</span>
+      <h2 id="place-h" className="absolute left-[20px] top-[18px] text-[16px] font-bold leading-[1.35]">{deciding ? '어디서 만날까?' : '여기서 만나요'}</h2>
+      <span role="timer" className={`absolute right-[20px] top-[18px] rounded-full px-[10px] py-[4px] text-[11px] leading-[1.35] ${deciding ? 'border border-white/25 font-medium' : 'bg-lime font-bold text-ink'}`}>{chip}</span>
       <div className="absolute left-[20px] right-[20px] top-[52px] h-[130px] overflow-hidden rounded-[18px] bg-map-2">
         <MidpointMap people={m.participants} />
       </div>
-      <p className="absolute left-[20px] right-[20px] top-[196px] truncate text-[22px] font-black leading-[1.35]">{m.placeName ?? mp.stationName}</p>
+      <p className="absolute left-[20px] right-[20px] top-[196px] truncate text-[22px] font-black leading-[1.35]">{m.placeName && !deciding ? m.placeName : mp.stationName}</p>
       <p className="absolute left-[20px] right-[20px] top-[228px] truncate text-[12px] font-medium leading-[1.35] text-night-muted">
-        {m.placeName ? `${mp.stationName} · ` : ''}평균 {mp.avgMin}분 · 최대 차이 {mp.maxGapMin}분
+        {m.placeName && !deciding ? `${mp.stationName} · ` : ''}평균 {mp.avgMin}분 · 최대 차이 {mp.maxGapMin}분
       </p>
-      <div className="absolute left-[20px] right-[20px] top-[250px] grid grid-cols-[140fr_150fr] gap-[12px]">
-        <button type="button" onClick={soon} disabled={!tugging} className="h-[40px] rounded-full border border-white/30 text-[13px] font-bold leading-[1.35] disabled:opacity-40">↔ 줄다리기</button>
-        <Link to="/ranking/area/hongdae" className="flex h-[40px] items-center justify-center rounded-full bg-lime text-[13px] font-bold leading-[1.35] text-ink">장소 리스트 보기</Link>
-      </div>
+      {deciding ? (
+        <div className={`absolute left-[20px] right-[20px] top-[250px] grid gap-[12px] ${tugging ? 'grid-cols-[140fr_150fr]' : 'grid-cols-1'}`}>
+          {tugging && (over
+            ? <Link to={`/meet/${m.id}/vote`} className={`${btn} border border-white/30`}>확정 투표하기</Link>
+            : <Link to={`/meet/${m.id}/tug`} className={`${btn} border border-white/30`}>↔ 줄다리기</Link>)}
+          <Link to={`/meet/${m.id}/places`} className={`${btn} bg-lime text-ink`}>장소 리스트 보기</Link>
+        </div>
+      ) : m.placeId && (
+        <div className="absolute left-[20px] right-[20px] top-[250px]">
+          <Link to={`/place/${m.placeId}`} className={`${btn} bg-lime text-ink`}>장소 보기</Link>
+        </div>
+      )}
     </section>
   )
 }
 
-function useCountdown(endsAt?: number) {
-  const calc = () => (endsAt ? Math.max(0, Math.round((endsAt - Date.now()) / 1000)) : 0)
-  const [s, setS] = useState(calc)
-  useEffect(() => {
-    setS(calc())
-    if (!endsAt) return
-    const t = setInterval(() => setS(calc()), 1000)
-    return () => clearInterval(t)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [endsAt])
-  return s
+/** 중간 지점 없이 가게부터 정한 약속 (L '여기서 약속 잡기') */
+function PickedPlaceCard({ m }: { m: Meeting }) {
+  return (
+    <section className="relative mt-[16px] rounded-[26px] bg-night-1 px-[20px] pb-[18px] pt-[18px]" aria-labelledby="picked-h">
+      <h2 id="picked-h" className="text-[16px] font-bold leading-[1.35]">여기서 만나요</h2>
+      <p className="mt-[8px] truncate text-[22px] font-black leading-[1.35]">{m.placeName}</p>
+      <p className="mt-[2px] text-[12px] font-medium leading-[1.35] text-night-muted">시간이 정해지면 모두에게 알려드려요</p>
+      {m.placeId && <Link to={`/place/${m.placeId}`} className="mt-[14px] flex h-[40px] items-center justify-center rounded-full bg-lime text-[13px] font-bold leading-[1.35] text-ink">장소 보기</Link>}
+    </section>
+  )
 }
 
 const FILL: Record<AvatarColor, string> = { lime: '#c6f432', yellow: '#ffd66b', blue: '#9fd6ff', pink: '#ffb3c7', purple: '#c9b8ff' }

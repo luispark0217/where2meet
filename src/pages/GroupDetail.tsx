@@ -12,9 +12,9 @@ import { StateView } from '../components/StateView'
 import { soon } from '../components/toast'
 import { useBack } from '../components/useBack'
 import type { Meeting } from '../data/types'
+import { at } from '../components/figma'
 
 /** 피그마 y좌표(상태바 포함) → 화면 위치 */
-const at = (y: number) => `calc(var(--sat) + ${y - 44}px)`
 
 const BUCKETS = [
   { key: 'active', label: '진행 중' },
@@ -24,7 +24,7 @@ const BUCKETS = [
 
 /** B · 모임 상세 — 약속 갤러리 (피그마 1:118) */
 export default function GroupDetail() {
-  const { id = 'g-uni' } = useParams()
+  const { id } = useParams() as { id: string }
   const back = useBack()
   const { data: g, status } = useApi(() => api.group(id), [id])
   const { data: meetings } = useApi(() => api.groupMeetings(id), [id])
@@ -75,7 +75,7 @@ export default function GroupDetail() {
       {g && <div className="px-6 pb-10">
         <div className="mt-[18px] flex h-[36px] items-center justify-between">
           <h2 className="text-[20px] font-black leading-[1.35]">약속</h2>
-          <Link to="/new" className="flex h-[36px] w-[104px] items-center justify-center rounded-full bg-lime text-[13px] font-bold leading-[1.35] text-ink">+ 새 약속</Link>
+          <Link to={`/new?group=${id}`} className="flex h-[36px] w-[104px] items-center justify-center rounded-full bg-lime text-[13px] font-bold leading-[1.35] text-ink">+ 새 약속</Link>
         </div>
         <ChipRow className="mt-[10px] h-[30px]">
           {BUCKETS.map((b) => <Chip key={b.key} size="sm" on={bucket === b.key} onClick={() => setBucket(b.key)}>{b.label}</Chip>)}

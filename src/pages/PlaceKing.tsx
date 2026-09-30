@@ -10,12 +10,12 @@ import { Screen } from '../components/Screen'
 import { StateView } from '../components/StateView'
 import { soon } from '../components/toast'
 import { useBack } from '../components/useBack'
+import { at } from '../components/figma'
 
-const at = (y: number) => `calc(var(--sat) + ${y - 44}px)`
 
 /** F · 왕 아이콘 클릭 — 장소 · 모임 랭킹 (피그마 3:2) */
 export default function PlaceKing() {
-  const { id = 'p-wine' } = useParams()
+  const { id } = useParams() as { id: string }
   const back = useBack('/ranking')
   const { data: k, status } = useApi(() => api.placeKing(id), [id])
   const top = k?.ranking[0]?.visits ?? 1
@@ -60,7 +60,7 @@ export default function PlaceKing() {
               <span className="block truncate text-[18px] font-bold leading-[1.35]">{k.king.group.name}</span>
               <span className="mt-[1.7px] block truncate text-[12px] font-medium leading-[1.35] text-paper-muted">방문 {k.king.visits}회 · {k.king.daysAsKing}일째 왕 자리</span>
             </span>
-            <Link to="/new" className="ml-[8px] mt-[6px] flex h-[40px] w-[96px] shrink-0 items-center justify-center rounded-full bg-ink text-[13px] font-bold leading-[1.35] text-lime">도전하기</Link>
+            <Link to={`/place/${k.place.id}/challenge`} className="ml-[8px] mt-[6px] flex h-[40px] w-[96px] shrink-0 items-center justify-center rounded-full bg-ink text-[13px] font-bold leading-[1.35] text-lime">{k.king.group.id === k.myGroupId ? '왕좌 지키기' : '도전하기'}</Link>
           </div>
 
           <hr className="mt-[16px] border-0 border-t border-paper-line" />

@@ -1,4 +1,5 @@
-import { useEffect, type ReactNode } from 'react'
+import { useContext, useEffect, type ReactNode } from 'react'
+import { BackgroundContext } from './backgroundContext'
 
 const BG = {
   night: 'bg-night text-white',
@@ -15,7 +16,8 @@ const BG = {
 export function Screen({ children, bg = 'night', className = '', padTop = true, title }: {
   children: ReactNode; bg?: keyof typeof BG; className?: string; padTop?: boolean; title?: string
 }) {
-  useEffect(() => { document.title = title ? `${title} · where2meet` : 'where2meet' }, [title])
+  const inBackground = useContext(BackgroundContext)
+  useEffect(() => { if (!inBackground) document.title = title ? `${title} · where2meet` : 'where2meet' }, [title, inBackground])
   return (
     <div className={`relative flow-root mx-auto min-h-dvh w-full max-w-[430px] overflow-x-clip ${BG[bg]} ${className}`}
       style={padTop ? { paddingTop: 'var(--sat)' } : undefined}>

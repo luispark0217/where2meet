@@ -3,25 +3,32 @@ import asyncio, subprocess, time, sys, os
 from PIL import Image, ImageChops, ImageDraw, ImageFilter
 from playwright.async_api import async_playwright
 ROOT=os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-OUT=os.path.join(ROOT,'qa','out');os.makedirs(OUT,exist_ok=True)
-ROUTES={'A':'/','B':'/group/g-uni','C':'/meet/m-fri','D':'/ranking','E':'/ranking/area/hongdae','F':'/place/p-wine','G':'/ranking/list'}
-only=sys.argv[1:] or list(ROUTES)
+OUT=os.path.join(ROOT,'qa',os.environ.get('OUTDIR','out'));os.makedirs(OUT,exist_ok=True)
+ROUTES={'A':'/','B':'/group/g-uni','C':'/meet/m-fri','D':'/ranking','E':'/ranking/area/hongdae','F':'/place/p-wine','G':'/ranking/list',
+  'M':'/meet/m-fri/tug','R':'/meet/m-fri/tug?pulled=1','N':'/meet/m-fri/places','P':'/meet/m-fri/vote','O':'/meet/m-fri/chat','S':'/meet/m-fri/share',
+  'L':'/place/p-wine/challenge','H':'/alerts','I':'/my','J':'/settings','K':'/new','Q':'/group/new'}
+# 추가 화면: 인자로 KEY=route 를 주면 그 화면도 비교 (예: M=/meet/m-fri/tug)
+for a in sys.argv[1:]:
+    if '=' in a: k,r=a.split('=',1); ROUTES[k]=r
+PORT=int(os.environ.get('PORT','4173'))
+only=[a.split('=')[0] for a in sys.argv[1:]] or list(ROUTES)
 def mask(w=390,h=844):
     m=Image.new('L',(w,h),0);d=ImageDraw.Draw(m)
     d.rounded_rectangle((8,8,w-9,h-9),radius=38,fill=255)   # 폰 테두리 제외
     d.rectangle((0,0,w,44),fill=0)                          # 상태바 제외
     return m
 async def main():
-    srv=subprocess.Popen(['python3','-m','http.server','4173','-d',os.path.join(ROOT,'dist')],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL);time.sleep(.8)
+    srv=subprocess.Popen(['python3','-m','http.server',str(PORT),'-d',os.path.join(ROOT,os.environ.get('DIST','dist'))],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL);time.sleep(.8)
     try:
         async with async_playwright() as p:
             b=await p.chromium.launch();pg=await b.new_page(viewport={'width':390,'height':844},device_scale_factor=1)
             errs=[];pg.on('pageerror',lambda e:errs.append(str(e)))
             M=mask();rows=[]
             for k in only:
-                await pg.goto(f'http://localhost:4173/?frame=1#{ROUTES[k]}');await pg.wait_for_timeout(900)
+                await pg.goto(f'http://localhost:{PORT}/?frame=1#{ROUTES[k]}');await pg.wait_for_timeout(900)
                 await pg.evaluate('document.fonts.ready')
                 shot=os.path.join(OUT,f'{k}_web.png');await pg.screenshot(path=shot)
+                if not os.path.exists(os.path.join(ROOT,'design-ref',f'{k}.png')): print(k,'design-ref 없음');continue
                 ref=Image.open(os.path.join(ROOT,'design-ref',f'{k}.png')).convert('RGB');web=Image.open(shot).convert('RGB')
                 diff=ImageChops.difference(ref,web).convert('L')
                 diff=Image.composite(diff,Image.new('L',diff.size,0),M)

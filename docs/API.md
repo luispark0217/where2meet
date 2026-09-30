@@ -1,6 +1,6 @@
 # 모일곳 API 연결 가이드 (재운용)
 
-> 프론트는 지금 가짜 데이터(`src/data/mock.ts`)로 돌아가요. 이 문서는 **어떤 주소로 무엇을 돌려주면 화면이 그대로 붙는지**, 그리고 **실서비스 전에 바꾸면 좋은 모양(v2)** 을 정리한 거예요.
+> 프론트는 지금 가짜 데이터로 돌아가요. 처음 상태는 `src/data/mock.ts`, 화면을 오가며 바뀌는 상태(투표·찜·확정·새 모임·줄다리기)는 `src/api/store.ts` 한 곳에 있어요. 이 문서는 **어떤 주소로 무엇을 돌려주면 화면이 그대로 붙는지**, 그리고 **실서비스 전에 바꾸면 좋은 모양(v2)** 을 정리한 거예요.
 > v2 타입 전체는 `docs/types-v2-proposal.ts` 에 있어요 (실제 `src/data/types.ts` 는 건드리지 않았어요).
 
 ---
@@ -11,13 +11,19 @@
 화면 (src/pages/*.tsx)
    │  useApi(() => api.xxx())      ← 로딩/에러 상태 관리
    ▼
-src/api/index.ts  ← ★ 여기만 바꾸면 됨 (지금은 mock 반환)
-   │  fetch(`${BASE}/api/...`)
+src/api/index.ts   api.*       ← A~G + 공통(나·모임·약속·장소)
+src/api/tug.ts     tugApi.*    ← M·R 줄다리기, N 장소 리스트, P 투표·확정
+src/api/me.ts      meApi.*     ← H 알림, I 마이, J 설정
+src/api/social.ts  socialApi.* ← O 채팅, S 공유, L 도전, K 약속 만들기, Q 모임 만들기
+   │  ★ 이 네 파일의 함수 안만 fetch(`${BASE}/api/...`) 로 바꾸면 됨
+   │    (지금은 src/api/store.ts = 가짜 서버 DB 를 읽고 씀. 연결이 끝나면 store.ts·data/mock.ts 는 삭제)
    ▼
 백엔드
 ```
 
-- 화면은 `api.*` 함수가 돌려주는 **Promise 의 모양(`src/data/types.ts`)** 만 알아요.
+- 화면은 네 파일의 함수가 돌려주는 **Promise 의 모양(`src/data/types.ts`)** 만 알아요. 화면 파일은 `store.ts`·`mock.ts` 를 직접 import 하지 않아요.
+- **바꾸는 요청(POST/PUT/PATCH)은 바뀐 결과를 돌려줘요.** 화면은 그 값으로 다시 그려요 (예: 당기기 → 바뀐 줄다리기 판, 투표 → 바뀐 투표 현황, 확정 → 바뀐 약속).
+- **id 는 전역이에요.** 같은 장소는 후보 리스트·투표·채팅 카드·왕좌·알림 어디서나 같은 id (`p-roast` = 연남 로스터리). 화면에 보이는 모든 장소 id 는 `GET /api/places/:id/king` 이 열려야 해요.
 - 인증: 쿠키 세션(권장, `credentials: 'include'`) 또는 `Authorization: Bearer <token>`. 둘 중 정해주시면 `request()` 한 곳만 맞추면 돼요.
 - 시각: **ISO 8601 + `+09:00`** 권장. (v1 은 `tugEndsAt` 만 ms 숫자)
 - 좌표: **lat/lng (WGS84)**. 화면 픽셀 x/y 는 서버가 보내지 않는 게 목표 (5장 참고).
@@ -42,6 +48,17 @@ src/api/index.ts  ← ★ 여기만 바꾸면 됨 (지금은 mock 반환)
 | E 확대 지도 (`/ranking/area/:area`) | AreaMap.tsx | `areaKings` |
 | F 왕 상세 (`/place/:id`) | PlaceKing.tsx | `placeKing` |
 | G 랭킹 리스트 (`/ranking/list`) | RankingList.tsx | `ranking`, `myRank` |
+| M·R 줄다리기 (`/meet/:id/tug`) | new/Tug.tsx | `tugApi.board`, `tugApi.pull` |
+| N 장소 리스트 (`/meet/:id/places`) | new/PlaceList.tsx | `tugApi.places`, `tugApi.like` |
+| P 장소 투표 (`/meet/:id/vote`) | new/PlaceVote.tsx | `tugApi.vote`, `tugApi.castVote`, `tugApi.confirm` |
+| O 채팅 (`/meet/:id/chat`) | new/Chat.tsx | `api.me`, `socialApi.chat`, `socialApi.sendMessage` |
+| S 공유 (`/meet/:id/share`) | new/Share.tsx | `socialApi.share` (+ 뒤에 C) |
+| L 왕좌 도전 (`/place/:id/challenge`) | new/Challenge.tsx | `socialApi.challenge`, `socialApi.watchThrone` |
+| H 알림 (`/alerts`) | new/Alerts.tsx | `meApi.alerts`, `meApi.markRead` |
+| I 마이 (`/my`) | new/My.tsx | `meApi.profile`, `meApi.setMainTitle`, `api.myGroups` |
+| J 설정 (`/settings`) | new/Settings.tsx | `meApi.settings`, `meApi.updateSetting` |
+| K 만들기 (`/new?group=&place=`) | new/CreateSheet.tsx | `api.myGroups`, `api.me`, `api.placeKing`, `socialApi.createMeeting` |
+| Q 새 모임 (`/group/new`) | new/NewGroup.tsx | `socialApi.newGroupDraft`, `socialApi.createGroup` |
 
 ---
 
@@ -183,6 +200,51 @@ v2: `primaryGroupId`, `createdAt` 추가 (G 화면 "내 모임" 카드 링크용
 - 어느 모임 기준? 제안: 대표 모임(`me.primaryGroupId`), 없으면 가장 순위 높은 모임.
 - 탭(type)에 따라 달라져야 하면 `?type=` 도 받기.
 
+### 3.12 새 화면(H~S) 함수 — `tug.ts` · `me.ts` · `social.ts`
+
+타입은 모두 `src/data/types.ts` 아래쪽 "H~S 화면" 부분에 있어요. `@mock-only` 표시 필드(그림 좌표·미리 만든 문구)는 v2 에서 lat/lng·ISO·id 로 바꿀 자리예요.
+에러는 1장의 공통 형식. 없는 약속/장소는 404, 단계가 안 맞는 요청(예: 시간 정하는 중인 약속의 줄다리기)도 404 로 주면 화면이 "지금은 ○○ 단계가 아니에요" 안내를 띄워요.
+
+| 함수 | 제안 HTTP | 요청 | 응답 | 화면 |
+|---|---|---|---|---|
+| `tugApi.board(meetingId)` | `GET /api/meetings/:id/tug` | – | `TugBoard` (`steps[stepIdx]` = 지금, `pullsUsed`, `endsAt`) | M·R |
+| `tugApi.pull(meetingId)` | `POST /api/meetings/:id/tug/pull` | 바디 없음 | 바뀐 `TugBoard`. 409 `DEADLINE_PASSED` / `NO_PULLS_LEFT` / `GAP_LIMIT` | M |
+| `tugApi.places(meetingId)` | `GET /api/meetings/:id/places?sort=&category=` | – | `PlaceListInfo` (`areaLabel` = 지금 중간 지점 기준, 확정 뒤 `confirmed`) | N |
+| `tugApi.like(meetingId, placeId, on)` | `PUT /api/meetings/:id/places/:placeId/like` | `{ on }` | 바뀐 `CandidatePlace` (`likes`, `liked`) | N |
+| `tugApi.vote(meetingId)` | `GET /api/meetings/:id/vote` | – | `PlaceVoteInfo` (`myChoice`, 확정 뒤 `confirmedPlaceId`) | P |
+| `tugApi.castVote(meetingId, placeId)` | `PUT /api/meetings/:id/vote` | `{ placeId }` | 바뀐 `PlaceVoteInfo` | P |
+| `tugApi.confirm(meetingId, placeId)` | `POST /api/meetings/:id/confirm` | `{ placeId }` | 바뀐 `Meeting` (`stage:'confirmed'`, `placeId`, `placeName`, `midpoint` 고정) | P → S |
+| `meApi.alerts()` | `GET /api/me/alerts` | – | `AlertItem[]` (`to` = 눌렀을 때 열 화면, 실제 있는 대상만) | H |
+| `meApi.markRead(ids?)` | `POST /api/me/alerts/read` | `{ ids? }` (없으면 모두) | 204 | H |
+| `meApi.profile()` | `GET /api/me/profile` | – | `MyProfile` (`mainTitle`, `topPlace.areaId`) | I |
+| `meApi.setMainTitle(title)` | `PATCH /api/me/profile` | `{ mainTitle }` | `{ mainTitle }` | I |
+| `meApi.settings()` | `GET /api/me/settings` | – | `Settings` | J |
+| `meApi.updateSetting(key, value)` | `PATCH /api/me/settings` | `{ [key]: boolean }` | 바뀐 `Settings` | J |
+| `socialApi.chat(meetingId)` | `GET /api/meetings/:id/chat` | – | `ChatRoom` (단계별 `quickReplies`, 줄다리기 중 `tug`, 확정 뒤 `confirmed`) | O |
+| `socialApi.sendMessage(meetingId, text)` | `POST /api/meetings/:id/chat` | `{ text }` | 보낸 `ChatMessage` | O |
+| `socialApi.share(meetingId)` | `GET /api/meetings/:id/share` | – | `ShareInfo` (확정 장소 > 지금 중간 지점 > '장소 미정') | S |
+| `socialApi.challenge(placeId)` | `GET /api/places/:id/challenge` | – | `ThroneChallenge` (내 모임이 왕이면 `toOvertake:0` + `rival`=2위) | L |
+| `socialApi.watchThrone(placeId, on)` | `PUT /api/places/:id/watch` | `{ on }` | `{ on }` | L |
+| `socialApi.newGroupDraft()` | `GET /api/groups/new` | – | `NewGroupDraft` | Q |
+| `socialApi.createGroup(input)` | `POST /api/groups` (사진은 multipart) | `NewGroupInput` | 만든 `Group` (`myRole:'방장'`) → 화면이 `/group/:id` 로 이동 | Q |
+| `socialApi.createMeeting(input)` | `POST /api/meetings` | `{ groupId, placeId? }` | 만든 `Meeting` (`stage:'time'`, 빈 `availability`) → `/meet/:id` | K (L '여기서 약속 잡기' → `/new?place=`) |
+
+같은 자원은 한 번만: 나 = `GET /api/me` (`api.me`), 내 모임 = `GET /api/groups` (`api.myGroups`, `Group.myRole` 포함). 예전의 `socialApi.me`·`meApi.myGroups` 는 지웠어요.
+
+**줄다리기 마감은 하나예요.** `GET /meetings/:id/tug` 의 `endsAt` 이 기준이고, `GET /meetings/:id` 의 `midpoint.tugEndsAt` 과 채팅의 `tug.endsAt` 은 같은 값을 비추기만 해요. 줄다리기 중에는 `midpoint.stationName/avgMin/maxGapMin` 도 지금 칸 값을 줘야 C·N·S 가 줄다리기 결과(예: 합정역)를 보여줘요. 마감이 지나면 화면은 "줄다리기 끝 · ○○역으로 결정!" + 확정 투표(P) 링크를 보여줘요.
+
+### 3.13 가짜 서버 `src/api/store.ts` (목 전용, 연결 후 삭제)
+
+| 이름 | 하는 일 |
+|---|---|
+| `db` | 모임·약속·줄다리기·찜·표·채팅·읽은 알림·설정·대표 칭호·왕좌 알림. `data/mock.ts` 를 복사해 시작 |
+| `commit()` | 바꾼 뒤 sessionStorage 에 저장 (같은 탭이면 새로고침해도 유지). 주소에 `?fresh=1` → 처음 상태 |
+| `tugOf(meetingId)` | 약속을 처음 볼 때 한 번만 마감(`지금 + 42초`)을 정함 |
+| `currentStep` · `meetingView` | 줄다리기 지금 칸을 약속의 `midpoint` 에 반영 |
+| `systemMessage` | 당기기·확정 때 채팅에 안내 한 줄 |
+
+`?pulled=1` (R 화면 디자인 비교용)은 `tugApi.board(id, { preview: 'R' })` 로만 전달되는 목 전용 미리보기예요. 서버는 무시하면 돼요.
+
 ---
 
 ## 4. 아직 없는 API (화면에 버튼만 있음)
@@ -190,14 +252,13 @@ v2: `primaryGroupId`, `createdAt` 추가 (G 화면 "내 모임" 카드 링크용
 | 버튼/기능 | 위치 | 제안 |
 |---|---|---|
 | 로그인 | 전체 | `POST /api/auth/kakao` (code → 세션), `POST /api/auth/logout` |
-| + 새 약속 / 도전하기 | B, F → `/new` | `POST /api/groups/:id/meetings` `{title, dates[], hours[], deadline}` |
+| 새 약속의 제목·날짜 범위 | K | 지금은 `POST /api/meetings {groupId, placeId?}` 만 (3.12). 제목·후보 날짜·마감 입력 화면은 디자인 대기 |
 | 시간표 칸 선택 | C | `PUT /api/meetings/:id/availability` `{slots: ISO[]}` (내 가능 시간 전체 덮어쓰기) |
 | 시간 확정 | C | `POST /api/meetings/:id/time/confirm` `{startAt}` (방장 또는 마감 시 자동) |
 | 출발지 등록 | C | `PUT /api/meetings/:id/origin` `{lat,lng}` 또는 `{stationId}` |
-| ↔ 줄다리기 | C | `POST /api/meetings/:id/tug` `{direction|stationId}` → 마감(`endsAt`) 후 서버가 확정. 409 `DEADLINE_PASSED` |
-| 약속 확정하고 공유하기 | C | `POST /api/meetings/:id/confirm` `{placeId}` → `{shareUrl}` |
+| ↔ 줄다리기 · 확정 | C·M·P | 3.12 로 옮김 (`tug/pull`, `confirm`). C 의 "약속 확정하고 공유하기"는 P(투표)로 가고, 확정은 P 에서만 해요 |
 | 장소·모임 검색 | D | `GET /api/search?q=&type=place|group` |
-| 모임 만들기/초대 | A | `POST /api/groups`, `POST /api/groups/:id/invites` → 초대 링크 |
+| 멤버 초대 | Q, S | `POST /api/groups/:id/invites` → 초대 링크 (모임 만들기는 3.12) |
 | 실시간 표시 | D, F, G | "방금 3곳 왕 교체" 하드코딩 → `GET /api/map/live` 폴링(30초) 또는 SSE `/api/stream` |
 | 방문 인증 | (새 화면) | 6장 |
 
@@ -334,7 +395,7 @@ VITE_USE_MOCK=false                              # true 면 지금처럼 mock
 ```
 개발 중 CORS 를 피하려면 `vite.config.ts` 에 `server.proxy: { '/api': 'http://localhost:8080' }`.
 
-### 7.2 `src/api/index.ts` 바꾸는 예
+### 7.2 `src/api/*.ts` 바꾸는 예 (index · tug · me · social 모두 같은 방식)
 ```ts
 const BASE = import.meta.env.VITE_API_BASE_URL ?? ''
 const USE_MOCK = import.meta.env.VITE_USE_MOCK === 'true'
@@ -374,7 +435,8 @@ export const api = {
 
 ### 7.4 체크리스트
 - [ ] 인증 방식 (쿠키 vs 토큰) 결정 → `request()` 반영
-- [ ] v1 그대로 11개 GET 먼저 붙이기 (3장)
+- [ ] v1 그대로 11개 GET 먼저 붙이기 (3장), 이어서 새 화면 함수 (3.12)
+- [ ] 연결이 끝나면 `src/api/store.ts` · `src/data/mock.ts` 삭제
 - [ ] 없는 리소스 404, 에러 바디 형식 통일
 - [ ] 좌표 lat/lng 로 전환 (카카오맵 연결과 같이)
 - [ ] 문구 필드 → 원본 필드 (5장), 화면 포맷터는 프론트가 작업

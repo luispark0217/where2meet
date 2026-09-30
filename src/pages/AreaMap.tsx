@@ -12,8 +12,8 @@ import { RoundPhoto } from '../components/Photo'
 import { Screen } from '../components/Screen'
 import { TabBar } from '../components/TabBar'
 import type { KingPin } from '../data/types'
+import { at } from '../components/figma'
 
-const at = (y: number) => `calc(var(--sat) + ${y - 44}px)`
 const fromBottom = (bottomY: number) => `calc(var(--tabpad) + ${844 - 34 - bottomY}px)`
 
 /** 일반 가게 (왕 없는 곳) 핀 — 피그마 위치 그대로 */
@@ -37,7 +37,7 @@ export default function AreaMap() {
         <IconButton label="뒤로" variant="white" size={44} onClick={back}>←</IconButton>
         <div className="ml-[10px] flex h-[48px] min-w-0 flex-1 items-center gap-[10px] rounded-full bg-white px-[16px] shadow-float">
           <span className="truncate text-[14px] font-bold leading-[1.35]">{info?.name ?? ''}</span>
-          <span className="shrink-0 text-[12px] font-medium leading-[1.35] text-paper-muted">왕좌 {pins?.length ?? 0}곳</span>
+          {ready && <span className="shrink-0 text-[12px] font-medium leading-[1.35] text-paper-muted">왕좌 {pins.length}곳</span>}
         </div>
         <IconButton label="목록 보기" variant="white" size={44} className="ml-[12px] mt-[2px]" onClick={() => nav('/ranking/list')}>≡</IconButton>
       </div>
