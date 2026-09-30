@@ -1,0 +1,97 @@
+@import "tailwindcss";
+
+/* ─────────────────────────────────────────────
+   디자인 기준표 (피그마 where2meet 리뉴얼에서 추출)
+   색·글꼴을 바꿀 땐 여기만 고치면 전체에 반영돼요.
+   ───────────────────────────────────────────── */
+@theme {
+  --font-sans: "Noto Sans KR Variable", "Noto Sans KR", "Apple SD Gothic Neo", system-ui, sans-serif;
+
+  /* 브랜드 */
+  --color-lime: #c6f432;
+  --color-lime-deep: #6f960a;   /* 밝은 배경 위 1위 숫자 */
+  --color-ink: #111412;         /* 글자·검은 버튼 */
+  --color-cream: #eef6d6;       /* 연한 라임 카드 */
+
+  /* 어두운 화면 (메인·모임·약속·랭킹 리스트) */
+  --color-night: #0e100f;       /* 배경 */
+  --color-night-1: #1a1d1b;     /* 카드 */
+  --color-night-2: #242826;     /* 진한 카드 */
+  --color-night-line: #2e332f;  /* 구분선 */
+  --color-night-tab: #121513;   /* 탭바 */
+  --color-night-tab-line: #262a27;
+  --color-night-muted: #9aa098; /* 보조 글자 */
+  --color-night-off: #6b716c;   /* 꺼진 탭 */
+
+  /* 밝은 화면 (지도·왕 상세) */
+  --color-paper: #f4f5f1;
+  --color-map: #edefe8;
+  --color-map-2: #eef1ea;
+  --color-park: #dcebc8;
+  --color-paper-muted: #9ba197;
+  --color-paper-line: #e1e4dc;
+  --color-paper-chip: #f2f3ef;
+
+  /* 상태 */
+  --color-live: #ff5a4e;        /* 실시간 점·순위 하락 */
+  --color-station: #2db400;     /* 지하철역 */
+
+  /* 카테고리 */
+  --color-cat-cafe: #b58656;
+  --color-cat-food: #ff9a3c;
+  --color-cat-bar: #8c7bff;
+  --color-cat-movie: #4f8bff;
+  --color-cat-comic: #2fc7a0;
+
+  /* 아바타 */
+  --color-av-yellow: #ffd66b;
+  --color-av-blue: #9fd6ff;
+  --color-av-pink: #ffb3c7;
+  --color-av-purple: #c9b8ff;
+
+  --shadow-float: 0 6px 16px 0 rgba(0, 0, 0, 0.14);
+  --shadow-soft: 0 6px 18px 0 rgba(0, 0, 0, 0.12);
+  --shadow-sheet: 0 -8px 24px 0 rgba(0, 0, 0, 0.12);
+}
+
+/* 폰 안전 영역. 피그마와 겹쳐 비교할 땐 ?frame=1 로 열면 상태바 44px / 홈바 34px 를 흉내내요. */
+:root {
+  --sat: env(safe-area-inset-top, 0px);
+  --sab: env(safe-area-inset-bottom, 0px);
+  /* 탭바 아래 여백: 홈바가 없는 폰에서도 글자·+버튼이 잘리지 않게 최소 10px */
+  --tabpad: max(var(--sab), 10px);
+}
+:root.frame {
+  --sat: 44px;
+  --sab: 34px;
+}
+
+@layer base {
+html, body, #root { height: 100%; }
+body {
+  margin: 0;
+  background: #050605;
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+  word-break: keep-all;
+}
+button { font: inherit; color: inherit; cursor: pointer; }
+button:disabled { cursor: default; }
+:focus-visible { outline: 2px solid var(--color-lime); outline-offset: 2px; border-radius: 12px; }
+.bg-paper :focus-visible, .bg-white :focus-visible, .bg-map :focus-visible, .bg-map-2 :focus-visible { outline-color: var(--color-ink); }
+}
+
+.no-scrollbar { scrollbar-width: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }
+
+@keyframes live-pulse { 0%,100% { opacity: 1 } 50% { opacity: .35 } }
+.live-dot { animation: live-pulse 1.6s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .live-dot { animation: none; } }
+
+.w2m-toast {
+  position: fixed; left: 50%; bottom: calc(90px + var(--tabpad)); transform: translateX(-50%); z-index: 100;
+  background: var(--color-ink); color: #fff; font: 700 13px/1.35 var(--font-sans); padding: 10px 16px; border-radius: 999px;
+  box-shadow: 0 6px 16px rgba(0,0,0,.25); white-space: nowrap; border: 1px solid rgba(255,255,255,.12);
+}
